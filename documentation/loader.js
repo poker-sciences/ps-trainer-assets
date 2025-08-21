@@ -19,9 +19,10 @@
   var MANIFEST_URL = BASE + '/' + path + '/manifest.json';
 
   // Incrémentez VERSION pour invalider le cache navigateur
-  var VERSION = 'v4';
+  var VERSION = 'v5';
 
   // Minimal logging only at the end
+  try { console.log(TAG, 'start: BASE=' + BASE + ', path=' + path + ', VERSION=' + VERSION); } catch (e) {}
 
   function staticFallbackList() {
     // Si le manifest est indisponible, on utilise cette liste minimale
