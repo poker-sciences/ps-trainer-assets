@@ -13,7 +13,10 @@
   - Si on recharge la page Questions avec une session en cours, l'état est conservé grâce au core.
 */
 (function () {
-  if (window.PSTrainerGame) return;
+  if (window.PSTrainerGame) {
+    try { console.log('[Trainer/Game] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   function getCore() { return window.PSTrainerCore; }
 

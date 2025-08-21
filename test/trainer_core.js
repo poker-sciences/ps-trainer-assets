@@ -31,6 +31,49 @@
 (function () {
   if (window.PSTrainerCore) {
     // Idempotent: si le core existe déjà, on ne ré-initialise pas
+    try { console.log('[Trainer/Core] Une instance existe déjà. Passage en mode observateur (ajout de logs sans réinitialiser).'); } catch (e) {}
+    try {
+      var core = window.PSTrainerCore;
+      var seenWrap = '__psTrainerWrapped__';
+      if (!core[seenWrap]) {
+        var log = function (message, data) {
+          if (data !== undefined) {
+            console.log('[Trainer/Core/Observer] ' + message, data);
+          } else {
+            console.log('[Trainer/Core/Observer] ' + message);
+          }
+        };
+        var methods = [
+          'startSession','endSession','resetSession','incrementScoreAndXp',
+          'setQuestionsTotal','updateProgress','applyResultsToTotalsOnce',
+          'navigateTo','hasCreditedToday','creditTodayIfNeededIncrementFlames'
+        ];
+        methods.forEach(function (name) {
+          try {
+            if (typeof core[name] === 'function') {
+              var original = core[name];
+              core[name] = function () {
+                var args = Array.prototype.slice.call(arguments);
+                log('Appel ' + name + '()', args);
+                var res = original.apply(core, args);
+                try { log('Retour ' + name + '()', res); } catch (_e) {}
+                return res;
+              };
+            }
+          } catch (_e) {}
+        });
+        try {
+          if (typeof core.on === 'function') {
+            var events = ['core:ready','state:updated','route:changed','session:started','session:finished','session:reset','progress:updated','flames:updated'];
+            events.forEach(function (evt) {
+              try { core.on(evt, function (detail) { log('Événement reçu → ' + evt, detail); }); } catch (_e) {}
+            });
+          }
+        } catch (_e) {}
+        core[seenWrap] = true;
+        log('Observer prêt: méthodes décorées et événements abonnés');
+      }
+    } catch (_e) {}
     return;
   }
 

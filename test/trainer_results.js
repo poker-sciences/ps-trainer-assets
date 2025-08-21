@@ -18,7 +18,10 @@
   - Bouton [data-result-next]: remet l'état de session à zéro et renvoie au Lobby.
 */
 (function () {
-  if (window.PSTrainerResults) return;
+  if (window.PSTrainerResults) {
+    try { console.log('[Trainer/Results] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   const APPLIED_KEY = "ps_trainer_last_result_applied_session_id";
 

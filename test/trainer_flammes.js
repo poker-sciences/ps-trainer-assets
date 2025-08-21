@@ -14,7 +14,10 @@
   - Peut synchroniser (push) vers des services externes si disponibles (sans bloquer l'UI).
 */
 (function () {
-  if (window.PSTrainerFlammes) return;
+  if (window.PSTrainerFlammes) {
+    try { console.log('[Trainer/Flammes] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   function getCore() {
     return window.PSTrainerCore;

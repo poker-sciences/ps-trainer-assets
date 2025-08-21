@@ -15,7 +15,10 @@
   - Important: jamais bloquant pour l'UI et on ignore les erreurs.
 */
 (function () {
-  if (window.PSTrainerServices) return;
+  if (window.PSTrainerServices) {
+    try { console.log('[Trainer/Services] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   const services = {
     // Hydrate progress fields from remote service. Returns { flames, xpTotal, lastPlayDate, level }

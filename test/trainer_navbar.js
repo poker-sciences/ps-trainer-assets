@@ -11,7 +11,10 @@
   - S'abonne aux événements de mise à jour pour être "live".
 */
 (function () {
-  if (window.PSTrainerNavbar) return;
+  if (window.PSTrainerNavbar) {
+    try { console.log('[Trainer/Navbar] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   function getCore() { return window.PSTrainerCore; }
 

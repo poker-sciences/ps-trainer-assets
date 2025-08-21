@@ -11,7 +11,10 @@
   - Démarre la session via le core, puis redirige vers /trainer/questions.
 */
 (function () {
-  if (window.PSTrainerLobby) return;
+  if (window.PSTrainerLobby) {
+    try { console.log('[Trainer/Lobby] Module déjà présent: on ne ré-initialise pas'); } catch (e) {}
+    return;
+  }
 
   function getCore() { return window.PSTrainerCore; }
 
