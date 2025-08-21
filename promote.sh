@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 1) Sauvegarde de test/
-backup="test_backup_$(date +%F_%H%M%S)"
+backup="backups_prod/test_backup_$(date +%F_%H%M%S)"
 cp -a test "$backup"
 echo "🗂  Backup créé: $backup"
 
@@ -18,7 +18,7 @@ git push
 cat <<'MSG'
 
 🔔 IMPORTANT — Pense à incrémenter la VERSION dans le loader Webflow !
-    var VERSION = 'vX';  // passe à vX+1 pour forcer le refresh navigateur
+    var VERSION = 'vX';  // passe à vX+1 pour forcer le refresh navigateur chez les utilisateurs
 
 👉 Où : Webflow > Navbar Ranges > Code TrainerApp > loader_code.js
 
