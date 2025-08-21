@@ -19,32 +19,10 @@
   var MANIFEST_URL = BASE + '/' + path + '/manifest.json';
 
   // Incrémentez VERSION pour invalider le cache navigateur
-  var VERSION = 'v6';
+  var VERSION = 'v5';
 
   // Minimal logging only at the end
   try { console.log(TAG, 'start: BASE=' + BASE + ', path=' + path + ', VERSION=' + VERSION); } catch (e) {}
-
-  // Filtre optionnel pour ignorer les erreurs bruyantes de tiers (ex: timeouts Memberstack) en TEST
-  function installThirdPartyNoiseFilter() {
-    try {
-      window.addEventListener('unhandledrejection', function (e) {
-        try {
-          var r = e && e.reason ? e.reason : {};
-          var msg = '' + (r && (r.message || r.toString() || ''));
-          var stack = '' + (r && r.stack ? r.stack : '');
-          var url = '';
-          try { url = (r && r.config && r.config.url) ? r.config.url : ''; } catch (_ignored) {}
-          var blob = msg + ' ' + stack + ' ' + url;
-          var isMemberstack = /memberstack/i.test(blob);
-          var isTimeout = /timeout exceeded|ERR_TIMED_OUT/i.test(blob);
-          if (isMemberstack && isTimeout) {
-            try { console.warn(TAG, 'Memberstack timeout ignoré (environnement test)', { message: msg, url: url }); } catch (_e) {}
-            e.preventDefault();
-          }
-        } catch (_e) {}
-      });
-    } catch (_e) {}
-  }
 
   function staticFallbackList() {
     // Si le manifest est indisponible, on utilise cette liste minimale
@@ -102,7 +80,6 @@
 
   function loadListAndStart() {
     try {
-      installThirdPartyNoiseFilter();
       if (!('fetch' in window)) {
         var fbNoFetch = staticFallbackList();
         return loadSequential(fbNoFetch);
