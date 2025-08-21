@@ -152,6 +152,8 @@
   };
 
   window.PSTrainerServices = services;
+  try { console.log('[Trainer/Services/MS] services:ready → dispatch de l’événement pst:services:ready'); } catch (_e) {}
+  try { window.dispatchEvent(new CustomEvent('pst:services:ready')); } catch (_e) {}
 })();
 
 
