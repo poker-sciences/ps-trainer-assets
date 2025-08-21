@@ -5,6 +5,10 @@ set -euo pipefail
 TEST_DIR="test"
 MANIFEST="$TEST_DIR/manifest.json"
 
+if [ ! -f "$MANIFEST" ]; then
+  printf '[]\n' > "$MANIFEST"
+fi
+
 echo "🔎 Vérification des scripts manquants dans ${MANIFEST}…"
 
 # Liste des fichiers .js présents dans test/ (sans manifest.json)
@@ -18,22 +22,22 @@ else
 fi
 
 # Calcule les fichiers manquants (présents dans test/ mais absents du manifest)
-MISSING=""
+declare -a MISSING_FILES=()
 IFS=$'\n'
 for f in $DISCOVERED; do
   if ! printf '%s\n' "$CURRENT" | grep -qx "$f"; then
-    MISSING+="$f\n"
+    MISSING_FILES+=("$f")
   fi
 done
 unset IFS
 
-if [ -n "${MISSING:-}" ]; then
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
   echo "⚠️  Les scripts suivants ne sont pas listés dans ${MANIFEST} et vont être ajoutés :"
-  printf '%s' "$MISSING"
+  for f in "${MISSING_FILES[@]}"; do echo "$f"; done
 
   if command -v jq >/dev/null 2>&1; then
     # Avec jq: append-only pour préserver l'ordre du manifest
-    MISSING_JSON=$(printf '%s\n' "$MISSING" | sed '/^$/d' | jq -R . | jq -s .)
+    MISSING_JSON=$(printf '%s\n' "${MISSING_FILES[@]}" | sed '/^$/d' | jq -R . | jq -s .)
     jq --argjson add "$MISSING_JSON" '. + $add' "$MANIFEST" > "$MANIFEST.tmp"
     mv "$MANIFEST.tmp" "$MANIFEST"
   else
@@ -51,7 +55,7 @@ if [ -n "${MISSING:-}" ]; then
       printf '  "%s"' "$f" >> "$tmp_out"
     done
     # Ajoute les manquants à la fin
-    for f in $MISSING; do
+    for f in "${MISSING_FILES[@]}"; do
       [ -z "$f" ] && continue
       count=$((count+1))
       if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
