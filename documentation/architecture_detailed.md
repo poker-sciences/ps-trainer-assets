@@ -76,13 +76,13 @@ Tous les scripts sont **vanilla JS.** Ils se branchent sur le DOM via **Custom A
     - Au **boot de chaque page** : comparer last_play_date et “aujourd’hui” (UTC).
         - Si écart ≥ 2 jours → **reset immédiat** flames=0, mettre à jour l’affichage (notamment navbar).
     - À la **fin d’une partie** : incrémenter flames (+1) **au plus une fois par jour**, fixer last_play_date au jour courant.
-    - Mettre à jour **tous les éléments** marqués par **count_flammes** (navbar, résultats, etc.).
+    - Mettre à jour **tous les éléments** marqués par **count_flames** (navbar, résultats, etc.).
 - **Sync** : peut pousser/puller ces champs via trainer_services.js si dispo.
 
 ## **4. trainer_navbar.js - liaison de la navbar**
 
 - **Rôle** : mettre à jour la navbar **sans créer du DOM** :
-    - Affichage des **flammes** via l’attribut **count_flammes**
+    - Affichage des **flammes** via l’attribut **count_flames**
     - S’abonner à l’état central pour **refresh live**.
 
 ## **5. trainer_lobby.js - liaison de la page Lobby**
@@ -107,7 +107,7 @@ Tous les scripts sont **vanilla JS.** Ils se branchent sur le DOM via **Custom A
 
 Ces noms servent de **cibles**
 
-- **Flammes (navbar + résultats)** : count_flammes → texte = nombre courant.
+- **Flammes (navbar + résultats)** : count_flames → texte = nombre courant.
 - **Lobby** : data-trainer-start="normal" et data-trainer-start="difficile" sur les boutons/links qui lancent une partie.
 - **Questions** :
     - **Param** local du nombre de questions (optionnel) : data-questions-total="20" (sinon valeur globale).
@@ -122,7 +122,7 @@ Ces noms servent de **cibles**
 - **Affichages requis** (via Custom Attributes génériques) :
     - **Score** sur N → data-result-score
     - **XP de session** → data-result-xp
-    - **Flammes** (série) → **count_flammes** (réutilisé)
+    - **Flammes** (série) → **count_flames** (réutilisé)
     - **Indicateur ×1.5** si mode difficile → data-result-mult-hard (montrer/masquer)
     - **Bouton Suivant** → data-result-next
 - **Traitements** :

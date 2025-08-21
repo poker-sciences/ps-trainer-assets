@@ -11,7 +11,7 @@
   - Lit la session terminée via le core et remplit les éléments du DOM:
       * [data-result-score]: affiche "score/N"
       * [data-result-xp]: XP de la session
-      * [count_flammes]: compteur courant des flammes
+      * [count_flames]: compteur courant des flammes
       * [data-result-mult-hard]: visible si mode difficile
   - Applique une seule fois l'XP de la session aux totaux (garde anti-double comptage via l'ID de session).
   - Peut synchroniser (push) vers un service externe sans bloquer l'affichage.
@@ -65,7 +65,7 @@
 
     setText('[data-result-score]', `${score}/${total}`);
     setText('[data-result-xp]', xp);
-    const flamesEls = document.querySelectorAll('[count_flammes]');
+    const flamesEls = document.querySelectorAll('[count_flames]');
     flamesEls.forEach(function (el) { el.textContent = String(flames); });
     toggle('[data-result-mult-hard]', isHard);
 

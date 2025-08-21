@@ -3,11 +3,11 @@
 
   Pour débutant:
   - La navbar existe déjà dans Webflow (HTML/CSS). On ne la recrée pas.
-  - Ici, on met juste à jour le texte des éléments qui ont l'attribut [count_flammes]
+  - Ici, on met juste à jour le texte des éléments qui ont l'attribut [count_flames]
     pour afficher la valeur actuelle des flammes (série).
 
   Ce que fait ce fichier:
-  - Lit la valeur dans l'état central (core) et met à jour tous les [count_flammes].
+  - Lit la valeur dans l'état central (core) et met à jour tous les [count_flames].
   - S'abonne aux événements de mise à jour pour être "live".
 */
 (function () {
@@ -20,7 +20,7 @@
     if (!core) return;
     const st = core.getState();
     const flames = st.progress.flames || 1;
-    const els = document.querySelectorAll('[count_flammes]');
+    const els = document.querySelectorAll('[count_flames]');
     els.forEach(function (el) { el.textContent = String(flames); });
   }
 
