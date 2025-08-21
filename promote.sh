@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) Sauvegarde de test/
-backup="backups_prod/test_backup_$(date +%F_%H%M%S)"
-cp -a test "$backup"
-echo "🗂  Backup créé: $backup"
+# --- paramètres ---
+BACKUP_DIR="backups_prod"
 
-# 2) Promotion: test → prod (copie exacte)
+# --- vérifs rapides ---
+[[ -d test && -d prod ]] || { echo "❌ Lance ce script à la racine du repo (dossiers test/ et prod/ requis)."; exit 1; }
+
+# --- 1) sauvegarde de PROD avant écrasement ---
+mkdir -p "$BACKUP_DIR"
+ts="$(date +%F_%H%M%S)"
+backup_path="$BACKUP_DIR/prod_backup_${ts}"
+cp -a prod "$backup_path"
+echo "🗂  Backup PROD -> $backup_path"
+
+# --- 2) promotion : TEST -> PROD (copie exacte du contenu) ---
 rsync -av --delete test/ prod/
+echo "⬆️  Promotion : test → prod"
 
-# 3) Commit & push
+# --- 3) commit & push ---
 git add -A
-git commit -m "promote: test → prod ($(date +%F_%H%M))" || echo "ℹ️ Rien à committer"
+git commit -m "promote: test → prod (${ts})" || echo "ℹ️ Rien à committer"
 git push
 
-# 4) Rappel fort: incrémente la VERSION dans le loader Webflow
+# --- 4) rappel version du loader ---
 cat <<'MSG'
 
-🔔 IMPORTANT — Pense à incrémenter la VERSION dans le loader Webflow !
+🔔 IMPORTANT — Pense à incrémenter la VERSION dans le loader Webflow :
     var VERSION = 'vX';  // passe à vX+1 pour forcer le refresh navigateur chez les utilisateurs
 
 👉 Où : Webflow > Navbar Ranges > Code TrainerApp > loader_code.js
