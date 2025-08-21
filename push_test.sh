@@ -100,4 +100,4 @@ else
 fi
 
 echo
-echo "ℹ️ Le manifeste (${MANIFEST}) est utilisé par le script sur Webflow pour charger tous les scripts de test."
+echo "ℹ️ Le manifeste (${MANIFEST}) est utilisé par le script sur Webflow loader.js pour charger tous les scripts."

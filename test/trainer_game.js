@@ -17,6 +17,15 @@
 
   function getCore() { return window.PSTrainerCore; }
 
+  // Logs pédagogiques pour suivre une partie question par question
+  function log(message, data) {
+    if (data !== undefined) {
+      console.log('[Trainer/Game] ' + message, data);
+    } else {
+      console.log('[Trainer/Game] ' + message);
+    }
+  }
+
   function queryAllAnswers() {
     const textAnswers = Array.prototype.slice.call(document.querySelectorAll('[data-answer]'));
     const moveAnswers = Array.prototype.slice.call(document.querySelectorAll('[data-move]'));
@@ -70,14 +79,17 @@
     const isCorrect = target.getAttribute('data-correct') === 'true';
     const core = getCore();
     if (!core) return;
+    log('Réponse cliquée', { correcte: isCorrect });
     core.incrementScoreAndXp(Boolean(isCorrect));
     showFeedback(Boolean(isCorrect));
     game.locked = true;
+    log('Feedback affiché et question verrouillée, en attente du bouton "suivant"');
   }
 
   function bindAnswers() {
     if (game.answersBound) return;
     const answers = queryAllAnswers();
+    log('Binding des réponses (texte et moves)', { nbReponses: answers.length });
     answers.forEach(function (el) {
       el.addEventListener('click', handleAnswerClick);
     });
@@ -90,6 +102,7 @@
       el.removeEventListener('click', handleAnswerClick);
     });
     game.answersBound = false;
+    log('Unbinding des réponses (nettoyage)');
   }
 
   function nextQuestion() {
@@ -97,7 +110,9 @@
     if (!core) return;
     const st = core.getState();
     const last = game.currentIndex + 1 >= game.total;
+    log('Bouton suivant cliqué', { indexActuel: game.currentIndex, total: game.total, estDerniere: last });
     if (last) {
+      log('Dernière question atteinte: on termine la session et on va aux Résultats');
       core.endSession();
       core.navigateTo('/trainer/results');
       return;
@@ -105,11 +120,13 @@
     game.currentIndex += 1;
     hideFeedback();
     game.locked = false;
+    log('Passage à la question suivante', { nouvelIndex: game.currentIndex });
   }
 
   function bindNext() {
     const btn = getNextButton();
     if (!btn) return;
+    log('Binding du bouton "suivant"');
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
       nextQuestion();
@@ -122,9 +139,11 @@
     const st = core.getState();
     if (st.route.name !== 'questions') return;
     if (!st.session) {
+      log('Garde Questions: pas de session -> retour au Lobby');
       core.navigateTo('/trainer/lobby');
       return;
     }
+    log('Garde Questions: session présente, accès autorisé');
   }
 
   function initCounters() {
@@ -135,9 +154,11 @@
     game.total = readTotalQuestions(core);
     // Ensure session total is set from DOM if present
     core.setQuestionsTotal(game.total);
+    log('Initialisation des compteurs de partie', { totalQuestions: game.total, mode: st.session?.mode });
   }
 
   function boot() {
+    log('Boot Game: on met en place les gardes et les bindings');
     const core = getCore();
     if (!core) {
       document.addEventListener('core:ready', function () { guards(); initCounters(); bindAnswers(); bindNext(); hideFeedback(); }, { once: true });
@@ -148,6 +169,7 @@
     bindAnswers();
     bindNext();
     hideFeedback();
+    log('Game prêt: attendez le clic sur une réponse');
   }
 
   window.PSTrainerGame = { };

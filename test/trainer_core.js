@@ -39,6 +39,15 @@
   const RESULTS_APPLIED_KEY = "ps_trainer_last_result_applied_session_id"; // évite de compter 2x les points
   const DEFAULT_QUESTIONS_TOTAL = 20; // nombre de questions par défaut
 
+  // Petit utilitaire pour des logs pédagogiques et cohérents
+  function log(message, data) {
+    if (data !== undefined) {
+      console.log('[Trainer/Core] ' + message, data);
+    } else {
+      console.log('[Trainer/Core] ' + message);
+    }
+  }
+
   // Convertit un objet Date en chaîne AAAA-MM-JJ en UTC
   function toUtcDateString(date) {
     const year = date.getUTCFullYear();
@@ -116,6 +125,8 @@
   function emit(eventName, detail) {
     const set = eventMap.get(eventName);
     if (!set) return;
+    // Log des événements pour visualiser les interactions entre modules
+    log('Événement émis → ' + eventName, detail);
     for (const handler of set) {
       try { handler(detail); } catch (err) { /* on ignore les erreurs de handler */ }
     }
@@ -187,6 +198,7 @@
   function notifyState() {
     savePersisted(state);
     emit("state:updated", getState());
+    log('État sauvegardé dans localStorage et notifié (state:updated)');
   }
 
   // Expose une copie de l'état (pas l'original)
@@ -203,20 +215,24 @@
   function setRouteFromLocation() {
     state.route = detectRoute();
     emit("route:changed", deepClone(state.route));
+    log('Route détectée depuis l’URL', deepClone(state.route));
   }
 
   // Empêche l'accès à certaines pages sans session valide
   function guardRouteAccess() {
     const r = state.route.name;
     if ((r === "questions" || r === "results") && !state.session) {
+      log('Garde de navigation: pas de session -> retour au Lobby');
       navigateTo("/trainer/lobby");
       return false;
     }
     if (r === "results" && state.session && !state.session.finishedAt) {
       // Allow results only when session finished, otherwise return to questions
+      log('Garde de navigation: session non terminée -> retour aux Questions');
       navigateTo("/trainer/questions");
       return false;
     }
+    log('Garde de navigation: accès autorisé pour la route', r);
     return true;
   }
 
@@ -224,6 +240,7 @@
   function navigateTo(path) {
     const normalized = normalizePathname(path);
     if (normalized === state.route.path) return; // no-op
+    log('Navigation vers', normalized);
     window.location.assign(normalized);
   }
 
@@ -242,6 +259,12 @@
       startedAt: nowIso,
       finishedAt: null
     };
+    log('Session démarrée (mode, questions, id, seed)', {
+      mode: modeNorm,
+      totalQuestions: total,
+      id: state.session.id,
+      seed: state.session.seed
+    });
     notifyState();
     emit("session:started", deepClone(state.session));
   }
@@ -250,6 +273,7 @@
   function endSession() {
     if (!state.session || state.session.finishedAt) return;
     state.session.finishedAt = new Date().toISOString();
+    log('Session terminée', { id: state.session.id, finishedAt: state.session.finishedAt });
     notifyState();
     emit("session:finished", deepClone(state.session));
   }
@@ -257,6 +281,7 @@
   // Réinitialise la session en mémoire
   function resetSession() {
     state.session = null;
+    log('Session réinitialisée (aucune session en cours)');
     notifyState();
     emit("session:reset", null);
   }
@@ -267,10 +292,18 @@
     const isHard = state.session.mode === "difficile";
     const difficultyMultiplier = isHard ? 1.5 : 1;
     const flamesMultiplier = Math.max(state.progress.flames || 0, 1);
+    const before = { score: state.session.score, xp: state.session.xp };
     if (isCorrect) {
       state.session.score += 1;
       state.session.xp += Math.round(10 * flamesMultiplier * difficultyMultiplier);
       notifyState();
+      log('Bonne réponse: score et XP augmentent', {
+        avant: before,
+        apres: { score: state.session.score, xp: state.session.xp },
+        multiplicateurs: { flammes: flamesMultiplier, difficulte: difficultyMultiplier }
+      });
+    } else {
+      log('Mauvaise réponse: le score et l’XP ne changent pas', before);
     }
   }
 
@@ -284,6 +317,11 @@
     try { localStorage.setItem(RESULTS_APPLIED_KEY, state.session.id); } catch (_e) {}
     notifyState();
     emit("progress:updated", deepClone(state.progress));
+    log('XP de la session ajouté aux totaux (une seule fois)', {
+      sessionId: state.session.id,
+      xpSession,
+      xpTotal: state.progress.xpTotal
+    });
     return true;
   }
 
@@ -294,6 +332,7 @@
     if (Number.isFinite(t) && t > 0) {
       state.session.totalQuestions = t;
       notifyState();
+      log('Nombre de questions de la session mis à jour', t);
     }
   }
 
@@ -302,6 +341,7 @@
     state.progress = Object.assign({}, state.progress, patch || {});
     notifyState();
     emit("progress:updated", deepClone(state.progress));
+    log('Progression mise à jour (flammes/xpTotal/date/level)', deepClone(state.progress));
   }
 
   // Indique si la journée a déjà été créditée
@@ -318,8 +358,10 @@
       const nextFlames = currentFlames + 1;
       updateProgress({ flames: nextFlames, lastPlayDate: today });
       emit("flames:updated", { flames: nextFlames, reason: "session_end" });
+      log('Fin de session: flammes incrémentées pour la journée', { de: currentFlames, a: nextFlames, date: today });
       return true;
     }
+    log('Fin de session: flammes déjà créditées aujourd’hui, pas de changement', { date: today, flammes: state.progress.flames });
     return false;
   }
 
@@ -328,6 +370,7 @@
     const svc = window.PSTrainerServices;
     if (!svc || typeof svc.hydrateUserProgress !== "function") return;
     try {
+      log('Hydratation depuis les services: tentative de lecture distante…');
       const data = await svc.hydrateUserProgress();
       if (!data) return;
       const next = {
@@ -337,13 +380,16 @@
         level: data.level ?? state.progress.level
       };
       updateProgress(next);
+      log('Hydratation: progression fusionnée avec les données distantes', next);
     } catch (_e) {
       // ignore service errors
+      log('Hydratation: échec silencieux (les erreurs service sont ignorées)');
     }
   }
 
   // Point d'entrée: détecte la route, applique les gardes, puis notifie "core:ready"
   function boot() {
+    log('Boot du core: détection de la route et application des gardes');
     setRouteFromLocation();
 
     // Navigation guards
@@ -352,6 +398,7 @@
     state.ready = true;
     notifyState();
     emit("core:ready", getState());
+    log('Core prêt: les autres modules peuvent se brancher (core:ready)');
 
     // Attempt hydration (non-blocking)
     hydrateFromServicesIfAvailable();

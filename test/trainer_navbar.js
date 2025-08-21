@@ -15,6 +15,15 @@
 
   function getCore() { return window.PSTrainerCore; }
 
+  // Logs pédagogiques pour visualiser les mises à jour de la navbar
+  function log(message, data) {
+    if (data !== undefined) {
+      console.log('[Trainer/Navbar] ' + message, data);
+    } else {
+      console.log('[Trainer/Navbar] ' + message);
+    }
+  }
+
   function refresh() {
     const core = getCore();
     if (!core) return;
@@ -22,9 +31,11 @@
     const flames = st.progress.flames || 1;
     const els = document.querySelectorAll('[count_flames]');
     els.forEach(function (el) { el.textContent = String(flames); });
+    log('Mise à jour de l’affichage des flammes dans la navbar', { flammes: flames, nbElements: els.length });
   }
 
   function boot() {
+    log('Boot Navbar: on se met à jour et on s’abonne aux changements');
     const core = getCore();
     if (!core) {
       document.addEventListener('core:ready', refresh, { once: true });
@@ -33,6 +44,7 @@
     refresh();
     core.on('progress:updated', function () { refresh(); });
     core.on('flames:updated', function () { refresh(); });
+    log('Navbar prête: elle se mettra à jour automatiquement sur les événements');
   }
 
   window.PSTrainerNavbar = { refresh };

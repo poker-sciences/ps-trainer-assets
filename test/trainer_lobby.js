@@ -15,12 +15,22 @@
 
   function getCore() { return window.PSTrainerCore; }
 
+  // Petits logs pédagogiques pour comprendre le flux côté Lobby
+  function log(message, data) {
+    if (data !== undefined) {
+      console.log('[Trainer/Lobby] ' + message, data);
+    } else {
+      console.log('[Trainer/Lobby] ' + message);
+    }
+  }
+
   function onStartClick(ev) {
     ev.preventDefault();
     const el = ev.currentTarget;
     const mode = el.getAttribute('data-trainer-start') === 'difficile' ? 'difficile' : 'normal';
     const core = getCore();
     if (!core) return;
+    log('Clic sur démarrer: on crée une nouvelle session et on va aux Questions', { mode });
     core.startSession(mode);
     core.navigateTo('/trainer/questions');
   }
@@ -28,6 +38,7 @@
   function bind() {
     const selectors = ['[data-trainer-start="normal"]', '[data-trainer-start="difficile"]'];
     const nodes = document.querySelectorAll(selectors.join(','));
+    log('Binding des boutons de démarrage', { nbBoutons: nodes.length });
     nodes.forEach(function (el) {
       el.addEventListener('click', onStartClick);
     });
@@ -39,9 +50,11 @@
     const st = core.getState();
     if (st.route.name !== 'lobby') return;
     // No special guard on lobby
+    log('Garde Lobby: aucune restriction, vous pouvez démarrer une session');
   }
 
   function boot() {
+    log('Boot Lobby: on attend le core si nécessaire, puis on bind les boutons');
     const core = getCore();
     if (!core) {
       document.addEventListener('core:ready', function () { bind(); guards(); }, { once: true });
@@ -49,6 +62,7 @@
     }
     bind();
     guards();
+    log('Lobby prêt: boutons actifs, en attente d’un clic utilisateur');
   }
 
   window.PSTrainerLobby = { };

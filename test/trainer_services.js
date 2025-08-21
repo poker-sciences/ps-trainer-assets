@@ -22,6 +22,7 @@
     async hydrateUserProgress() {
       // Placeholder: in the future, pull from Memberstack custom fields
       // Return null/undefined to indicate "no data" without error
+      console.log('[Trainer/Services] Appel hydrateUserProgress() -> pas de source distante, renvoie null');
       return null;
     },
 
@@ -29,18 +30,21 @@
     async syncUserProgress(summary) {
       // Placeholder: push to Memberstack/AWS when available
       void summary; // suppress linter about unused
+      console.log('[Trainer/Services] Appel syncUserProgress(summary) -> simulation réussie', summary);
       return true;
     },
 
     // Fetch questions based on mode/seed. For now, return empty array to let UI provide questions from DOM.
     async fetchQuestions(params) {
       void params;
+      console.log('[Trainer/Services] Appel fetchQuestions(params) -> renvoie [] (les questions viennent du DOM)', params);
       return [];
     },
 
     // Save results remotely (fire-and-forget)
     async saveResults(summary) {
       void summary;
+      console.log('[Trainer/Services] Appel saveResults(summary) -> simulation réussie (aucun backend)');
       return true;
     }
   };

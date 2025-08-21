@@ -1,5 +1,4 @@
 // Script de chargement des modules Trainer sur Webflow (multi-fichiers)
-// Si vous le collez dans un embed HTML, entourez ce contenu par <script> ... </script>
 (function () {
   if (window.__PST_LOADER_RUNNING__) {
     try { console.warn('[Trainer Loader]', 'already running - skipping'); } catch (e) {}
@@ -13,6 +12,8 @@
   // Pour l'instant on charge depuis /test (les builds prod suivront la même structure)
   var path = 'test'; // était: isTest ? 'test' : 'prod'
   var TAG = '[Trainer Loader]';
+  var loadedFiles = [];
+  var failedFiles = [];
 
   // Découverte simple via un manifest statique publié dans /test (fallback si indisponible)
   var MANIFEST_URL = BASE + '/' + path + '/manifest.json';
@@ -20,13 +21,10 @@
   // Incrémentez VERSION pour invalider le cache navigateur
   var VERSION = 'v4';
 
-  try {
-    console.log(TAG, 'start', { host: host, base: BASE, path: path, manifest: MANIFEST_URL, version: VERSION });
-  } catch (e) {}
+  // Minimal logging only at the end
 
   function staticFallbackList() {
     // Si le manifest est indisponible, on utilise cette liste minimale
-    try { console.warn(TAG, 'using static fallback list'); } catch (e) {}
     return [
       'trainer_core.js',
       'trainer_services.js',
@@ -39,17 +37,21 @@
   }
 
   function loadSequential(files) {
-    try { console.info(TAG, 'loading files sequentially', files); } catch (e) {}
     var index = 0;
     function next() {
       if (index >= files.length) {
-        try { console.log(TAG, 'all scripts loaded'); } catch (e) {}
+        try { console.log(TAG, 'loaded:', loadedFiles); } catch (e) {}
+        if (failedFiles.length) {
+          try { console.error(TAG, 'failed:', failedFiles); } catch (e) {}
+          try { console.error(TAG, 'status: ERROR'); } catch (e) {}
+        } else {
+          try { console.log(TAG, 'status: OK'); } catch (e) {}
+        }
         return;
       }
       var name = files[index++];
       // Skip invalid names (safety)
       if (!/^[-\w\.]+\.js$/i.test(name)) {
-        try { console.warn(TAG, 'skip invalid name', name); } catch (e) {}
         return next();
       }
       var s = document.createElement('script');
@@ -59,17 +61,15 @@
       try {
         var selector = 'script[src^="' + BASE + '/' + path + '/' + name + '"]';
         if (document.querySelector(selector)) {
-          console.info(TAG, 'already present, skip', name);
           return next();
         }
       } catch (e) {}
-      try { console.log(TAG, 'loading', name, s.src); } catch (e) {}
       s.onload = function () {
-        try { console.log(TAG, 'loaded', name); } catch (e) {}
+        try { loadedFiles.push(name); } catch (e) {}
         next();
       };
       s.onerror = function () {
-        try { console.error(TAG, 'failed', name, s.src); } catch (e) {}
+        try { failedFiles.push(name); } catch (e) {}
         next();
       };
       document.head.appendChild(s);
@@ -80,16 +80,16 @@
   function loadListAndStart() {
     try {
       if (!('fetch' in window)) {
-        return loadSequential(staticFallbackList());
+        var fbNoFetch = staticFallbackList();
+        return loadSequential(fbNoFetch);
       }
-      try { console.info(TAG, 'fetching manifest', MANIFEST_URL); } catch (e) {}
       fetch(MANIFEST_URL, { cache: 'no-store' })
         .then(function (res) { return res.ok ? res.json() : Promise.reject(res.status); })
         .then(function (files) {
           try {
             if (!Array.isArray(files) || files.length === 0) {
-              try { console.warn(TAG, 'manifest empty or invalid, using fallback'); } catch (e) {}
-              return loadSequential(staticFallbackList());
+              var fbEmpty = staticFallbackList();
+              return loadSequential(fbEmpty);
             }
             // Filtre défensif et préserve l'ordre du manifest.
             files = files.filter(function (name) { return typeof name === 'string' && /\.js$/i.test(name); });
@@ -99,17 +99,19 @@
               var core = files.splice(i, 1)[0];
               files.unshift(core);
             }
-            try { console.info(TAG, 'manifest loaded', files); } catch (e) {}
             loadSequential(files);
           } catch (_e) {
-            try { console.warn(TAG, 'manifest parse error, using fallback'); } catch (e) {}
-            loadSequential(staticFallbackList());
+            var fbParse = staticFallbackList();
+            loadSequential(fbParse);
           }
         })
-        .catch(function (err) { try { console.warn(TAG, 'manifest fetch failed', err); } catch (e) {} loadSequential(staticFallbackList()); });
+        .catch(function () {
+          var fbFetch = staticFallbackList();
+          loadSequential(fbFetch);
+        });
     } catch (_e) {
-      try { console.warn(TAG, 'unexpected error, using fallback'); } catch (e) {}
-      loadSequential(staticFallbackList());
+      var fbErr = staticFallbackList();
+      loadSequential(fbErr);
     }
   }
 
