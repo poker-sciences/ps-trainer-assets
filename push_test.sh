@@ -87,3 +87,17 @@ cat <<'MSG'
 (CTRL/CMD+Shift+R si cache navigateur)
 
 MSG
+
+# 3) Récapitulatif manifest
+echo
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+  echo "🧾 Récapitulatif des fichiers ajoutés à ${MANIFEST} :"
+  for f in "${MISSING_FILES[@]}"; do
+    echo " - $f"
+  done
+else
+  echo "🧾 Aucun nouveau fichier n'a été ajouté à ${MANIFEST}."
+fi
+
+echo
+echo "ℹ️ Le manifeste (${MANIFEST}) est utilisé par le script sur Webflow pour charger tous les scripts de test."
