@@ -67,14 +67,4 @@ git add -A
 git commit -m "$COMMIT_MSG" || echo "ℹ️ Rien à committer"
 git push
 
-# --- 5) rappel version du loader ---
-cat <<'MSG'
-
-🔔 IMPORTANT — Pense à incrémenter la VERSION dans le loader Webflow :
-    var VERSION = 'vX';  // passe à vX+1 pour forcer le refresh navigateur chez les utilisateurs
-
-👉 Où : Webflow > Navbar Ranges > Code TrainerApp > loader_code.js
-
-MSG
-
 echo "✅ Promotion terminée."
