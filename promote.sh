@@ -7,6 +7,13 @@ BACKUP_DIR="backups_prod"
 # --- vérifs rapides ---
 [[ -d test && -d prod ]] || { echo "❌ Lance ce script à la racine du repo (dossiers test/ et prod/ requis)."; exit 1; }
 
+# --- confirmation ---
+read -rp "⚠️  Cette action va promouvoir TEST vers PROD et écraser le contenu de prod. Tapez 'confirm' pour continuer: " CONFIRM_PROMO
+if [[ "$CONFIRM_PROMO" != "confirm" ]]; then
+  echo "Opération annulée."
+  exit 1
+fi
+
 # --- 1) sauvegarde de PROD avant écrasement ---
 mkdir -p "$BACKUP_DIR"
 ts="$(date +%F_%H%M%S)"
