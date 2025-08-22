@@ -16,9 +16,14 @@ DISCOVERED=$( (cd "$TEST_DIR" && ls -1 *.js 2>/dev/null || true) | sed '/^manife
 
 # Liste actuelle du manifest (format: lignes sans guillemets)
 if command -v jq >/dev/null 2>&1; then
-  CURRENT=$(jq -r '.[]' "$MANIFEST" 2>/dev/null || true)
+  # Supporte l'ancien format (array) et le nouveau (objet {version, files})
+  CURRENT=$(jq -r 'if type=="array" then .[] else (.files // [])[] end' "$MANIFEST" 2>/dev/null || true)
 else
-  CURRENT=$(grep -oE '"[^"]+"' "$MANIFEST" 2>/dev/null | tr -d '"' || true)
+  # Sans jq: tente d'extraire la section files si elle existe, sinon extrait toutes les chaînes (ancien format array)
+  CURRENT=$(sed -n '/"files"[[:space:]]*:/,/]/p' "$MANIFEST" 2>/dev/null | grep -oE '"[^"]+"' | tr -d '"' | grep -v '^files$' || true)
+  if [ -z "$CURRENT" ]; then
+    CURRENT=$(grep -oE '"[^"]+"' "$MANIFEST" 2>/dev/null | tr -d '"' || true)
+  fi
 fi
 
 # Calcule les fichiers manquants (présents dans test/ mais absents du manifest)
@@ -30,6 +35,17 @@ for f in $DISCOVERED; do
   fi
 done
 unset IFS
+
+# 1) Demande le message de commit et calcule la version
+COMMIT_MSG=""
+read -rp "✍️  Entrez le message de commit (optionnel): " COMMIT_MSG
+DATE_TAG=$(date +'%Y-%m-%d-%H-%M')
+SUFFIX=$(printf '%s' "$COMMIT_MSG" | sed -E 's/[[:space:]]+/-/g; s/^-+//; s/-+$//')
+if [ -n "$SUFFIX" ]; then
+  VERSION="v-${DATE_TAG}-${SUFFIX}"
+else
+  VERSION="v-${DATE_TAG}"
+fi
 
 # Calcule les fichiers obsolètes (présents dans le manifest mais absents de test/)
 declare -a STALE_FILES=()
@@ -52,22 +68,31 @@ if [ ${#MISSING_FILES[@]} -gt 0 ] || [ ${#STALE_FILES[@]} -gt 0 ]; then
   fi
 
   if command -v jq >/dev/null 2>&1; then
-    # Avec jq: on retire d'abord les entrées obsolètes tout en préservant l'ordre existant,
-    # puis on ajoute les entrées manquantes en fin de liste.
+    # Avec jq: filtre les obsolètes, ajoute les manquants, et écrit un objet {version, files}
     MISSING_JSON=$(printf '%s\n' "${MISSING_FILES[@]}" | sed '/^$/d' | jq -R . | jq -s .)
     DISCOVERED_JSON=$(printf '%s\n' "$DISCOVERED" | sed '/^$/d' | jq -R . | jq -s .)
-    jq --argjson exist "$DISCOVERED_JSON" --argjson add "$MISSING_JSON" \
-      'map(select(. as $e | ($exist | index($e)))) + $add' \
+    jq --argjson exist "$DISCOVERED_JSON" --argjson add "$MISSING_JSON" --arg ver "$VERSION" \
+      '
+      def updated(files; exist; add):
+        (files // [] | map(select(. as $e | (exist | index($e))))) as $kept
+        | ($kept + add);
+      if type=="array" then
+        { version: $ver, files: updated(.; $exist; $add) }
+      else
+        { version: $ver, files: updated(.files; $exist; $add) }
+      end
+      ' \
       "$MANIFEST" > "$MANIFEST.tmp"
     mv "$MANIFEST.tmp" "$MANIFEST"
   else
-    # Fallback sans jq: réécrit le manifest en conservant l'ordre existant des éléments encore présents,
-    # puis ajoute les manquants à la fin
+    # Fallback sans jq: réécrit le manifeste en OBJET {version, files}
     tmp_out=$(mktemp)
     count=0
-    # Écrit l'ouverture
-    printf '[\n' > "$tmp_out"
-    # Ajoute les entrées existantes dans l'ordre
+    # Écrit l'ouverture de l'objet et la version
+    printf '{\n' > "$tmp_out"
+    printf '  "version": "%s",\n' "$VERSION" >> "$tmp_out"
+    printf '  "files": [\n' >> "$tmp_out"
+    # Ajoute les entrées existantes (encore présentes) dans l'ordre
     IFS=$'\n'
     for f in $CURRENT; do
       [ -z "$f" ] && continue
@@ -77,18 +102,18 @@ if [ ${#MISSING_FILES[@]} -gt 0 ] || [ ${#STALE_FILES[@]} -gt 0 ]; then
       fi
       count=$((count+1))
       if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
-      printf '  "%s"' "$f" >> "$tmp_out"
+      printf '    "%s"' "$f" >> "$tmp_out"
     done
     # Ajoute les manquants à la fin
     for f in "${MISSING_FILES[@]}"; do
       [ -z "$f" ] && continue
       count=$((count+1))
       if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
-      printf '  "%s"' "$f" >> "$tmp_out"
+      printf '    "%s"' "$f" >> "$tmp_out"
     done
     unset IFS
-    # Ferme le tableau
-    printf '\n]\n' >> "$tmp_out"
+    # Ferme le tableau et l'objet
+    printf '\n  ]\n}\n' >> "$tmp_out"
     mv "$tmp_out" "$MANIFEST"
   fi
   echo "✅ ${MANIFEST} mis à jour."
@@ -96,13 +121,8 @@ else
   echo "✅ ${MANIFEST} est déjà à jour."
 fi
 
-# 1) Commit & push les changements dans test/
+# 2) Commit & push les changements dans test/
 git add -A
-# Demande le message de commit à l'utilisateur et boucle jusqu'à une saisie non vide
-COMMIT_MSG=""
-while [ -z "${COMMIT_MSG}" ]; do
-  read -rp "✍️  Entrez le message de commit: " COMMIT_MSG
-done
 git commit -m "$COMMIT_MSG" || echo "ℹ️ Rien à committer"
 git push
 

@@ -1,8 +1,11 @@
-[
-  "trainer_core.js",
-  "trainer_flammes.js",
-  "trainer_navbar.js",
-  "trainer_game.js",
-  "trainer_results.js",
-  "trainer_lobby.js"
-]
+{
+  "version": "v-2025-08-22-00-00-texte-avec-tirets",
+  "files": [
+    "trainer_core.js",
+    "trainer_flammes.js",
+    "trainer_navbar.js",
+    "trainer_game.js",
+    "trainer_results.js",
+    "trainer_lobby.js"
+  ]
+}
