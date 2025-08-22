@@ -22,8 +22,8 @@ echo "⬆️  Promotion : test → prod"
 COMMIT_MSG=""
 read -rp "✍️  Entrez le message de commit (optionnel): " COMMIT_MSG
 DATE_TAG=$(date +'%Y-%m-%d-%H-%M')
-# Remplace les tirets du message par des espaces
-SUFFIX=$(printf '%s' "$COMMIT_MSG" | sed -E 's/-+/ /g; s/^ +//; s/ +$//')
+# Remplace les espaces du message par des tirets (et supprime tirets en bord)
+SUFFIX=$(printf '%s' "$COMMIT_MSG" | sed -E 's/[[:space:]]+/-/g; s/^-+//; s/-+$//')
 if [ -n "$SUFFIX" ]; then
   VERSION="v-${DATE_TAG}-${SUFFIX}"
 else
