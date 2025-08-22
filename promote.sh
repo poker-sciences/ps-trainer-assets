@@ -20,7 +20,9 @@ echo "⬆️  Promotion : test → prod"
 
 # --- 3) commit & push ---
 git add -A
-git commit -m "promote: test → prod (${ts})" || echo "ℹ️ Rien à committer"
+COMMIT_MSG=""
+read -rp "✍️  Entrez le message de commit (optionnel): " COMMIT_MSG
+git commit -m "$COMMIT_MSG" || echo "ℹ️ Rien à committer"
 git push
 
 # --- 4) rappel version du loader ---

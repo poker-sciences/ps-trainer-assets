@@ -1,11 +1,4 @@
 {
-  "version": "v-2025-08-22-10-34-Test-message-commit-dans-version-3",
-  "files": [
-    "trainer_core.js",
-    "trainer_flammes.js",
-    "trainer_navbar.js",
-    "trainer_game.js",
-    "trainer_results.js",
-    "trainer_lobby.js"
-  ]
+  "version": "v-2025-08-22-10-39-Suppression-de-tous-les-fichiers-dans-/test-sauf-manifeste",
+  "files": []
 }

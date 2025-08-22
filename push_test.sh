@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#
+# Script de déploiement des tests
+# - Synchronise test/manifest.json avec les fichiers .js de test/ (ajoute les manquants, retire les obsolètes)
+# - Demande un message de commit (optionnel) et génère une version au format v-YYYY-MM-JJ-HH-MM[-suffix]
+#   (suffix dérivé du message de commit, espaces remplacés par des tirets)
+# - Écrit le manifeste au format { version, files } avec la nouvelle version et la liste des fichiers
+# - Commit et push les changements sur Git
+# - Affiche un récapitulatif des modifications
 set -euo pipefail
 
 # 0) Sync manifest.json with .js files present in test/
