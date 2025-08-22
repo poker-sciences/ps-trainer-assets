@@ -1,7 +1,7 @@
 //
 // loader.js — Script à copier-coller dans un embed code Webflow
 // - Charge dynamiquement les scripts depuis /prod ou /test hébergés sur
-//   https://poker-sciences.github.io/ps-trainer-assets
+//   https://ps-trainer-assets.pages.dev
 // - Sélectionne l'environnement selon le domaine :
 //   pokersciences.com => prod, poker-sciences.webflow.io => test (par défaut: test)
 // - Récupère la liste des fichiers et la version via le manifest.json de l'environnement
@@ -11,8 +11,8 @@
 (function () {
   'use strict';
 
-  // Base publique des assets
-  var BASE_URL = 'https://poker-sciences.github.io/ps-trainer-assets';
+  // Base publique des assets (Cloudflare Pages)
+  var BASE_URL = 'https://ps-trainer-assets.pages.dev';
 
   // Détermine l'environnement depuis le domaine
   var host = (window.location && window.location.hostname) || '';
@@ -26,7 +26,8 @@
     env = 'test';
   }
 
-  var manifestUrl = BASE_URL + '/' + env + '/manifest.json?t=' + Date.now();
+  // Cache-busting agressif pour le manifeste (timestamp + token aléatoire)
+  var manifestUrl = BASE_URL + '/' + env + '/manifest.json?ts=' + Date.now() + '-' + Math.random().toString(36).slice(2);
 
   function loadScriptSequentially(scriptUrls) {
     var index = 0;
