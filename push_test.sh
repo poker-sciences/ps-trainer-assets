@@ -66,60 +66,59 @@ if [ ${#MISSING_FILES[@]} -gt 0 ] || [ ${#STALE_FILES[@]} -gt 0 ]; then
     echo "⚠️  Les scripts suivants sont listés dans ${MANIFEST} mais n'existent plus dans ${TEST_DIR} et vont être retirés :"
     for f in "${STALE_FILES[@]}"; do echo "$f"; done
   fi
-
-  if command -v jq >/dev/null 2>&1; then
-    # Avec jq: filtre les obsolètes, ajoute les manquants, et écrit un objet {version, files}
-    MISSING_JSON=$(printf '%s\n' "${MISSING_FILES[@]}" | sed '/^$/d' | jq -R . | jq -s .)
-    DISCOVERED_JSON=$(printf '%s\n' "$DISCOVERED" | sed '/^$/d' | jq -R . | jq -s .)
-    jq --argjson exist "$DISCOVERED_JSON" --argjson add "$MISSING_JSON" --arg ver "$VERSION" \
-      '
-      def updated(files; exist; add):
-        (files // [] | map(select(. as $e | (exist | index($e))))) as $kept
-        | ($kept + add);
-      if type=="array" then
-        { version: $ver, files: updated(.; $exist; $add) }
-      else
-        { version: $ver, files: updated(.files; $exist; $add) }
-      end
-      ' \
-      "$MANIFEST" > "$MANIFEST.tmp"
-    mv "$MANIFEST.tmp" "$MANIFEST"
-  else
-    # Fallback sans jq: réécrit le manifeste en OBJET {version, files}
-    tmp_out=$(mktemp)
-    count=0
-    # Écrit l'ouverture de l'objet et la version
-    printf '{\n' > "$tmp_out"
-    printf '  "version": "%s",\n' "$VERSION" >> "$tmp_out"
-    printf '  "files": [\n' >> "$tmp_out"
-    # Ajoute les entrées existantes (encore présentes) dans l'ordre
-    IFS=$'\n'
-    for f in $CURRENT; do
-      [ -z "$f" ] && continue
-      # Ignore les entrées obsolètes qui ne sont plus dans DISCOVERED
-      if ! printf '%s\n' "$DISCOVERED" | grep -qx "$f"; then
-        continue
-      fi
-      count=$((count+1))
-      if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
-      printf '    "%s"' "$f" >> "$tmp_out"
-    done
-    # Ajoute les manquants à la fin
-    for f in "${MISSING_FILES[@]}"; do
-      [ -z "$f" ] && continue
-      count=$((count+1))
-      if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
-      printf '    "%s"' "$f" >> "$tmp_out"
-    done
-    unset IFS
-    # Ferme le tableau et l'objet
-    printf '\n  ]\n}\n' >> "$tmp_out"
-    mv "$tmp_out" "$MANIFEST"
-  fi
-  echo "✅ ${MANIFEST} mis à jour."
-else
-  echo "✅ ${MANIFEST} est déjà à jour."
 fi
+
+# Met à jour systématiquement le manifeste: version et liste des fichiers
+if command -v jq >/dev/null 2>&1; then
+  # Avec jq: filtre les obsolètes, ajoute les manquants, et écrit un objet {version, files}
+  MISSING_JSON=$(printf '%s\n' "${MISSING_FILES[@]}" | sed '/^$/d' | jq -R . | jq -s .)
+  DISCOVERED_JSON=$(printf '%s\n' "$DISCOVERED" | sed '/^$/d' | jq -R . | jq -s .)
+  jq --argjson exist "$DISCOVERED_JSON" --argjson add "$MISSING_JSON" --arg ver "$VERSION" \
+    '
+    def updated(files; exist; add):
+      (files // [] | map(select(. as $e | (exist | index($e))))) as $kept
+      | ($kept + add);
+    if type=="array" then
+      { version: $ver, files: updated(.; $exist; $add) }
+    else
+      { version: $ver, files: updated(.files; $exist; $add) }
+    end
+    ' \
+    "$MANIFEST" > "$MANIFEST.tmp"
+  mv "$MANIFEST.tmp" "$MANIFEST"
+else
+  # Fallback sans jq: réécrit le manifeste en OBJET {version, files}
+  tmp_out=$(mktemp)
+  count=0
+  # Écrit l'ouverture de l'objet et la version
+  printf '{\n' > "$tmp_out"
+  printf '  "version": "%s",\n' "$VERSION" >> "$tmp_out"
+  printf '  "files": [\n' >> "$tmp_out"
+  # Ajoute les entrées existantes (encore présentes) dans l'ordre
+  IFS=$'\n'
+  for f in $CURRENT; do
+    [ -z "$f" ] && continue
+    # Ignore les entrées obsolètes qui ne sont plus dans DISCOVERED
+    if ! printf '%s\n' "$DISCOVERED" | grep -qx "$f"; then
+      continue
+    fi
+    count=$((count+1))
+    if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
+    printf '    "%s"' "$f" >> "$tmp_out"
+  done
+  # Ajoute les manquants à la fin
+  for f in "${MISSING_FILES[@]}"; do
+    [ -z "$f" ] && continue
+    count=$((count+1))
+    if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
+    printf '    "%s"' "$f" >> "$tmp_out"
+  done
+  unset IFS
+  # Ferme le tableau et l'objet
+  printf '\n  ]\n}\n' >> "$tmp_out"
+  mv "$tmp_out" "$MANIFEST"
+fi
+echo "✅ ${MANIFEST} mis à jour."
 
 # 2) Commit & push les changements dans test/
 git add -A
