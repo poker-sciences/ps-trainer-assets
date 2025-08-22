@@ -1,6 +1,5 @@
 [
   "trainer_core.js",
-  "trainer_services.js",
   "trainer_flammes.js",
   "trainer_navbar.js",
   "trainer_game.js",

@@ -31,17 +31,38 @@ for f in $DISCOVERED; do
 done
 unset IFS
 
-if [ ${#MISSING_FILES[@]} -gt 0 ]; then
-  echo "⚠️  Les scripts suivants ne sont pas listés dans ${MANIFEST} et vont être ajoutés :"
-  for f in "${MISSING_FILES[@]}"; do echo "$f"; done
+# Calcule les fichiers obsolètes (présents dans le manifest mais absents de test/)
+declare -a STALE_FILES=()
+IFS=$'\n'
+for f in $CURRENT; do
+  if ! printf '%s\n' "$DISCOVERED" | grep -qx "$f"; then
+    STALE_FILES+=("$f")
+  fi
+done
+unset IFS
+
+if [ ${#MISSING_FILES[@]} -gt 0 ] || [ ${#STALE_FILES[@]} -gt 0 ]; then
+  if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "⚠️  Les scripts suivants ne sont pas listés dans ${MANIFEST} et vont être ajoutés :"
+    for f in "${MISSING_FILES[@]}"; do echo "$f"; done
+  fi
+  if [ ${#STALE_FILES[@]} -gt 0 ]; then
+    echo "⚠️  Les scripts suivants sont listés dans ${MANIFEST} mais n'existent plus dans ${TEST_DIR} et vont être retirés :"
+    for f in "${STALE_FILES[@]}"; do echo "$f"; done
+  fi
 
   if command -v jq >/dev/null 2>&1; then
-    # Avec jq: append-only pour préserver l'ordre du manifest
+    # Avec jq: on retire d'abord les entrées obsolètes tout en préservant l'ordre existant,
+    # puis on ajoute les entrées manquantes en fin de liste.
     MISSING_JSON=$(printf '%s\n' "${MISSING_FILES[@]}" | sed '/^$/d' | jq -R . | jq -s .)
-    jq --argjson add "$MISSING_JSON" '. + $add' "$MANIFEST" > "$MANIFEST.tmp"
+    DISCOVERED_JSON=$(printf '%s\n' "$DISCOVERED" | sed '/^$/d' | jq -R . | jq -s .)
+    jq --argjson exist "$DISCOVERED_JSON" --argjson add "$MISSING_JSON" \
+      'map(select(. as $e | ($exist | index($e)))) + $add' \
+      "$MANIFEST" > "$MANIFEST.tmp"
     mv "$MANIFEST.tmp" "$MANIFEST"
   else
-    # Fallback sans jq: réécrit le manifest en conservant l'ordre existant puis en ajoutant les manquants
+    # Fallback sans jq: réécrit le manifest en conservant l'ordre existant des éléments encore présents,
+    # puis ajoute les manquants à la fin
     tmp_out=$(mktemp)
     count=0
     # Écrit l'ouverture
@@ -50,6 +71,10 @@ if [ ${#MISSING_FILES[@]} -gt 0 ]; then
     IFS=$'\n'
     for f in $CURRENT; do
       [ -z "$f" ] && continue
+      # Ignore les entrées obsolètes qui ne sont plus dans DISCOVERED
+      if ! printf '%s\n' "$DISCOVERED" | grep -qx "$f"; then
+        continue
+      fi
       count=$((count+1))
       if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
       printf '  "%s"' "$f" >> "$tmp_out"
@@ -95,13 +120,18 @@ MSG
 
 # 3) Récapitulatif manifest
 echo
-if [ ${#MISSING_FILES[@]} -gt 0 ]; then
-  echo "🧾 Récapitulatif des fichiers ajoutés à ${MANIFEST} :"
-  for f in "${MISSING_FILES[@]}"; do
-    echo " - $f"
-  done
+echo "🧾 Récapitulatif des modifications de ${MANIFEST} :"
+if [ ${#MISSING_FILES[@]} -eq 0 ] && [ ${#STALE_FILES[@]} -eq 0 ]; then
+  echo " - Aucun changement"
 else
-  echo "🧾 Aucun nouveau fichier n'a été ajouté à ${MANIFEST}."
+  if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo " - Ajoutés :"
+    for f in "${MISSING_FILES[@]}"; do echo "   • $f"; done
+  fi
+  if [ ${#STALE_FILES[@]} -gt 0 ]; then
+    echo " - Retirés :"
+    for f in "${STALE_FILES[@]}"; do echo "   • $f"; done
+  fi
 fi
 
 echo
