@@ -1,4 +1,6 @@
 {
-  "version": "v-2025-08-22-10-39-Suppression-de-tous-les-fichiers-dans-/test-sauf-manifeste",
-  "files": []
+  "version": "v-2025-08-22-10-44-Test-message-depuis-promote.sh",
+  "files": [
+    "test.js"
+  ]
 }

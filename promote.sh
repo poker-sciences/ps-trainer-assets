@@ -18,14 +18,56 @@ echo "🗂  Backup PROD -> $backup_path"
 rsync -av --delete test/ prod/
 echo "⬆️  Promotion : test → prod"
 
-# --- 3) commit & push ---
-git add -A
+# --- 3) versionnage du manifeste PROD ---
 COMMIT_MSG=""
 read -rp "✍️  Entrez le message de commit (optionnel): " COMMIT_MSG
+DATE_TAG=$(date +'%Y-%m-%d-%H-%M')
+# Remplace les tirets du message par des espaces
+SUFFIX=$(printf '%s' "$COMMIT_MSG" | sed -E 's/-+/ /g; s/^ +//; s/ +$//')
+if [ -n "$SUFFIX" ]; then
+  VERSION="v-${DATE_TAG}-${SUFFIX}"
+else
+  VERSION="v-${DATE_TAG}"
+fi
+
+PROD_MANIFEST="prod/manifest.json"
+if command -v jq >/dev/null 2>&1; then
+  jq --arg ver "$VERSION" '
+    if type=="array" then
+      { version: $ver, files: . }
+    else
+      { version: $ver, files: (.files // []) }
+    end
+  ' "$PROD_MANIFEST" > "$PROD_MANIFEST.tmp"
+  mv "$PROD_MANIFEST.tmp" "$PROD_MANIFEST"
+else
+  CURRENT_FILES=$(sed -n '/"files"[[:space:]]*:/,/]/p' "$PROD_MANIFEST" 2>/dev/null | grep -oE '"[^\"]+"' | tr -d '"' | grep -v '^files$' || true)
+  if [ -z "$CURRENT_FILES" ]; then
+    CURRENT_FILES=$(grep -oE '"[^\"]+"' "$PROD_MANIFEST" 2>/dev/null | tr -d '"' || true)
+  fi
+  tmp_out=$(mktemp)
+  count=0
+  printf '{\n' > "$tmp_out"
+  printf '  "version": "%s",\n' "$VERSION" >> "$tmp_out"
+  printf '  "files": [\n' >> "$tmp_out"
+  IFS=$'\n'
+  for f in $CURRENT_FILES; do
+    [ -z "$f" ] && continue
+    count=$((count+1))
+    if [ $count -gt 1 ]; then printf ',\n' >> "$tmp_out"; fi
+    printf '    "%s"' "$f" >> "$tmp_out"
+  done
+  unset IFS
+  printf '\n  ]\n}\n' >> "$tmp_out"
+  mv "$tmp_out" "$PROD_MANIFEST"
+fi
+
+# --- 4) commit & push ---
+git add -A
 git commit -m "$COMMIT_MSG" || echo "ℹ️ Rien à committer"
 git push
 
-# --- 4) rappel version du loader ---
+# --- 5) rappel version du loader ---
 cat <<'MSG'
 
 🔔 IMPORTANT — Pense à incrémenter la VERSION dans le loader Webflow :
