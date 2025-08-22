@@ -73,7 +73,12 @@ fi
 
 # 1) Commit & push les changements dans test/
 git add -A
-git commit -m "push(test): update test ($(date +%F_%H%M))" || echo "ℹ️ Rien à committer"
+# Demande le message de commit à l'utilisateur et boucle jusqu'à une saisie non vide
+COMMIT_MSG=""
+while [ -z "${COMMIT_MSG}" ]; do
+  read -rp "✍️  Entrez le message de commit: " COMMIT_MSG
+done
+git commit -m "$COMMIT_MSG" || echo "ℹ️ Rien à committer"
 git push
 
 # 2) Message de rappel
