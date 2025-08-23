@@ -1,0 +1,2 @@
+/* env:test version:v-2025-08-23-12-21-test-de-nouveau-push-test-sh */
+(()=>{console.log("Hello World !");})();
