@@ -1,2 +1,2 @@
-console.log('Hello World !');
+console.log('Ceci est un nouveau message !');
 
