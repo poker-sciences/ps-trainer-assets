@@ -37,45 +37,57 @@ async function memberstackLoadProfile() {
     // 1) Memberstack V2 runtime ($memberstackDom)
     if (window.$memberstackDom && window.$memberstackDom.getCurrentMember) {
       const res = await window.$memberstackDom.getCurrentMember();
-      // V2: la forme est { data: { customFields: {...} } }
       const cf = (res && (res.data?.customFields || res.customFields)) || {};
-      // Normalisation des slugs potentiels (ex: "flammes" FR)
-      const normalized = {
-        xp_total: (cf.xp_total ?? cf.xpTotal ?? cf.xp) || 0,
-        level: (cf.level ?? cf.niveau) ?? 1,
-        flames: (cf.flames ?? cf.flammes) ?? 0,
-        last_play_date: (cf.last_play_date ?? cf.lastPlayDate) ?? null,
+      const pick = (...keys) => {
+        for (const k of keys) {
+          const v = cf[k];
+          if (v !== undefined && v !== null && String(v) !== '') return v;
+        }
+        return undefined;
       };
-      return {
-        xp_total: Number(normalized.xp_total) || 0,
-        level: Number(normalized.level) || 1,
-        flames: Number(normalized.flames) || 0,
-        last_play_date: normalized.last_play_date || null,
-      };
+
+      const xpRaw = pick('xp_total', 'xpTotal', 'xp');
+      const levelRaw = pick('level', 'niveau');
+      const flamesRaw = pick('flames', 'flammes');
+      const lastRaw = pick('last_play_date', 'lastPlayDate', 'last_played', 'lastPlayed');
+
+      const profile = {};
+      if (xpRaw !== undefined) profile.xp_total = Number(xpRaw) || 0;
+      if (levelRaw !== undefined) profile.level = Number(levelRaw) || 1;
+      if (flamesRaw !== undefined) profile.flames = Number(flamesRaw) || 0;
+      if (lastRaw !== undefined) {
+        let ymd = lastRaw;
+        try {
+          if (ymd instanceof Date) ymd = ymd.toISOString().slice(0, 10);
+          else if (typeof ymd === 'string' && ymd.includes('T')) ymd = ymd.slice(0, 10);
+        } catch (e) {}
+        profile.last_play_date = ymd || null;
+      }
+      return profile;
     }
 
     // 2) Memberstack V2/V1 objet global (getCustomFields)
     const ms = window.Memberstack || window.memberstack || window.MemberStack;
     if (ms && typeof ms.getCustomFields === 'function') {
       const fields = (await ms.getCustomFields()) || {};
-      return {
-        xp_total: Number(fields.xp_total) || 0,
-        level: Number(fields.level) || 1,
-        flames: Number(fields.flames) || 0,
-        last_play_date: fields.last_play_date || null,
-      };
+      const profile = {};
+      if (fields.xp_total !== undefined) profile.xp_total = Number(fields.xp_total) || 0;
+      if (fields.level !== undefined) profile.level = Number(fields.level) || 1;
+      if (fields.flames !== undefined) profile.flames = Number(fields.flames) || 0;
+      if (fields.last_play_date !== undefined) profile.last_play_date = fields.last_play_date || null;
+      return profile;
     }
 
     // 3) API alternative: getCurrentMember() → { data: { customFields } }
     if (ms && typeof ms.getCurrentMember === 'function') {
       const res = await ms.getCurrentMember();
       const fields = (res && (res.customFields || res.data?.customFields)) || {};
-      return {
-        xp_total: Number(fields.xp_total) || 0,
-        level: Number(fields.level) || 1,
-        flames: Number(fields.flames) || 0,
-        last_play_date: fields.last_play_date || null,
-      };
+      const profile = {};
+      if (fields.xp_total !== undefined) profile.xp_total = Number(fields.xp_total) || 0;
+      if (fields.level !== undefined) profile.level = Number(fields.level) || 1;
+      if (fields.flames !== undefined) profile.flames = Number(fields.flames) || 0;
+      if (fields.last_play_date !== undefined) profile.last_play_date = fields.last_play_date || null;
+      return profile;
     }
 
     // Rien d'exploitable → on laisse le fallback s'occuper du reste
@@ -136,28 +148,22 @@ async function memberstackSaveProfile(profile) {
 
 // Lecture du profil : Memberstack → localStorage → défauts.
 export async function loadProfile() {
-  // 1) Essayer Memberstack si dispo
-  if (isMemberstackAvailable()) {
-    const msProfile = await memberstackLoadProfile();
-    if (msProfile) {
-      // On remplit les défauts au cas où il manque des champs
-      return { ...DEFAULT_PROFILE, ...msProfile };
-    }
-  }
-
-  // 2) Sinon localStorage
+  // On lit toujours localStorage en premier
+  let base = { ...DEFAULT_PROFILE };
   try {
     const raw = localStorage.getItem(LS_PROFILE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...DEFAULT_PROFILE, ...parsed };
-    }
+    if (raw) base = { ...base, ...JSON.parse(raw) };
   } catch (e) {
     log('Impossible de lire le profil localStorage, on repart sur les défauts.');
   }
 
-  // 3) Défauts
-  return { ...DEFAULT_PROFILE };
+  // Puis on écrase avec Memberstack uniquement pour les champs réellement présents
+  if (isMemberstackAvailable()) {
+    const msProfile = await memberstackLoadProfile();
+    if (msProfile) base = { ...base, ...msProfile };
+  }
+
+  return base;
 }
 
 // Écrit le profil complet.
