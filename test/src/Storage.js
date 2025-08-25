@@ -19,25 +19,67 @@ const DEFAULT_PROFILE = {
 // REMARQUE: L'API exacte peut varier selon ta configuration Memberstack.
 // Ici on propose un contrat minimal et inoffensif si Memberstack est absent.
 function isMemberstackAvailable() {
-  return typeof window !== 'undefined' && (window.Memberstack || window.memberstack);
+  if (typeof window === 'undefined') return false;
+  // Supporte plusieurs variantes d'API exposées par Memberstack v1/v2
+  return Boolean(
+    window.Memberstack ||
+    window.memberstack ||
+    window.MemberStack ||
+    (window.$memberstackDom && window.$memberstackDom.getCurrentMember)
+  );
 }
 
 async function memberstackLoadProfile() {
   try {
-    // Cette partie dépend de ta configuration Memberstack.
-    // On essaie un schéma générique et on fallback si rien n'est dispo.
-    const ms = window.Memberstack || window.memberstack;
-    if (!ms) return null;
+    // Cette partie dépend de la configuration Memberstack (V1/V2).
+    // On tente plusieurs stratégies, on retourne null si aucune ne fonctionne.
 
-    // Hypothèse : on peut lire des "custom fields". À adapter si besoin.
-    const fields = (await ms.getCustomFields?.()) || {};
-    const profile = {
-      xp_total: Number(fields.xp_total) || 0,
-      level: Number(fields.level) || 1,
-      flames: Number(fields.flames) || 0,
-      last_play_date: fields.last_play_date || null,
-    };
-    return profile;
+    // 1) Memberstack V2 runtime ($memberstackDom)
+    if (window.$memberstackDom && window.$memberstackDom.getCurrentMember) {
+      const res = await window.$memberstackDom.getCurrentMember();
+      // V2: la forme est { data: { customFields: {...} } }
+      const cf = (res && (res.data?.customFields || res.customFields)) || {};
+      // Normalisation des slugs potentiels (ex: "flammes" FR)
+      const normalized = {
+        xp_total: (cf.xp_total ?? cf.xpTotal ?? cf.xp) || 0,
+        level: (cf.level ?? cf.niveau) ?? 1,
+        flames: (cf.flames ?? cf.flammes) ?? 0,
+        last_play_date: (cf.last_play_date ?? cf.lastPlayDate) ?? null,
+      };
+      return {
+        xp_total: Number(normalized.xp_total) || 0,
+        level: Number(normalized.level) || 1,
+        flames: Number(normalized.flames) || 0,
+        last_play_date: normalized.last_play_date || null,
+      };
+    }
+
+    // 2) Memberstack V2/V1 objet global (getCustomFields)
+    const ms = window.Memberstack || window.memberstack || window.MemberStack;
+    if (ms && typeof ms.getCustomFields === 'function') {
+      const fields = (await ms.getCustomFields()) || {};
+      return {
+        xp_total: Number(fields.xp_total) || 0,
+        level: Number(fields.level) || 1,
+        flames: Number(fields.flames) || 0,
+        last_play_date: fields.last_play_date || null,
+      };
+    }
+
+    // 3) API alternative: getCurrentMember() → { data: { customFields } }
+    if (ms && typeof ms.getCurrentMember === 'function') {
+      const res = await ms.getCurrentMember();
+      const fields = (res && (res.customFields || res.data?.customFields)) || {};
+      return {
+        xp_total: Number(fields.xp_total) || 0,
+        level: Number(fields.level) || 1,
+        flames: Number(fields.flames) || 0,
+        last_play_date: fields.last_play_date || null,
+      };
+    }
+
+    // Rien d'exploitable → on laisse le fallback s'occuper du reste
+    return null;
   } catch (e) {
     log('Memberstack indisponible (lecture), utilisation du fallback localStorage.');
     return null;
@@ -46,16 +88,46 @@ async function memberstackLoadProfile() {
 
 async function memberstackSaveProfile(profile) {
   try {
-    const ms = window.Memberstack || window.memberstack;
-    if (!ms) return false;
     const payload = {
       xp_total: String(profile.xp_total || 0),
       level: String(profile.level || 1),
       flames: String(profile.flames || 0),
       last_play_date: profile.last_play_date || null,
     };
-    await ms.updateCustomFields?.(payload);
-    return true;
+
+    // 1) V2 runtime
+    if (window.$memberstackDom && window.$memberstackDom.updateCurrentMember) {
+      // On écrit à la fois en anglais et en éventuel alias français si présent dans ton app
+      const customFields = {
+        ...payload,
+        flammes: payload.flames, // alias FR éventuel
+        xpTotal: payload.xp_total,
+        lastPlayDate: payload.last_play_date,
+      };
+      await window.$memberstackDom.updateCurrentMember({ customFields });
+      return true;
+    }
+
+    const ms = window.Memberstack || window.memberstack || window.MemberStack;
+    if (!ms) return false;
+
+    // 2) API directe updateCustomFields
+    if (typeof ms.updateCustomFields === 'function') {
+      await ms.updateCustomFields(payload);
+      return true;
+    }
+
+    // 3) API alternative setCustomFields / updateCurrentMember
+    if (typeof ms.setCustomFields === 'function') {
+      await ms.setCustomFields(payload);
+      return true;
+    }
+    if (typeof ms.updateCurrentMember === 'function') {
+      await ms.updateCurrentMember({ customFields: payload });
+      return true;
+    }
+
+    return false;
   } catch (e) {
     log('Memberstack indisponible (écriture), fallback localStorage.');
     return false;
