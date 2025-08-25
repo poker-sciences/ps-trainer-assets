@@ -166,7 +166,27 @@ export async function loadProfile() {
   // Puis on écrase avec Memberstack uniquement pour les champs réellement présents
   if (isMemberstackAvailable()) {
     const msProfile = await memberstackLoadProfile();
-    if (msProfile) base = { ...base, ...msProfile };
+    if (msProfile) {
+      // Ne remplace que les champs restés à leur valeur par défaut locale
+      const out = { ...base };
+      if (
+        msProfile.xp_total !== undefined &&
+        (base.xp_total === DEFAULT_PROFILE.xp_total || base.xp_total === undefined)
+      ) out.xp_total = Number(msProfile.xp_total) || 0;
+      if (
+        msProfile.level !== undefined &&
+        (base.level === DEFAULT_PROFILE.level || base.level === undefined)
+      ) out.level = Number(msProfile.level) || 1;
+      if (
+        msProfile.flames !== undefined &&
+        (base.flames === DEFAULT_PROFILE.flames || base.flames === undefined)
+      ) out.flames = Number(msProfile.flames) || 0;
+      if (
+        msProfile.last_play_date !== undefined &&
+        (base.last_play_date === DEFAULT_PROFILE.last_play_date || base.last_play_date === undefined)
+      ) out.last_play_date = msProfile.last_play_date || null;
+      base = out;
+    }
   }
 
   return base;
