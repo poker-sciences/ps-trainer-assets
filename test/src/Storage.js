@@ -117,7 +117,7 @@ async function memberstackSaveProfile(profile) {
     if (window.$memberstackDom && window.$memberstackDom.updateCurrentMember) {
       // Construire l'objet minimal en évitant d'envoyer des null/undefined
       const customFields = {};
-      if (payload.flames !== undefined) customFields.flammes = payload.flames;
+      if (payload.flames !== undefined) customFields.flames = payload.flames;
       if (payload.xp_total !== undefined) {
         customFields['xp-total'] = payload.xp_total;
         customFields.xpTotal = payload.xp_total;
