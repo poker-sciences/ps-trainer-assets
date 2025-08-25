@@ -8,6 +8,39 @@ import Progress from './Progress.js';
 
 const SELECTOR_FLAMES = '[data-trainer-flames]';
 
+async function setFlamesWithFade(el, value, animate = true) {
+  if (!el) return;
+  const newText = String(Number(value) || 0);
+  const oldText = String((el.textContent || '').trim());
+  // Toujours marquer prêt
+  el.setAttribute('data-ready', '1');
+  // Si pas d'animation ou pas de changement, écrire direct
+  if (!animate || oldText === '' || oldText === newText) {
+    setText(el, newText);
+    el.style.opacity = '1';
+    return;
+  }
+  // Animation: fade-out (100ms) -> swap texte -> fade-in (100ms)
+  try {
+    // Assurer une transition
+    if (!el.style.transition) {
+      el.style.transition = 'opacity 100ms ease';
+    }
+    el.style.opacity = '1';
+    // Fade out
+    el.style.opacity = '0';
+    await new Promise((r) => setTimeout(r, 110));
+    // Swap texte pendant invisible
+    setText(el, newText);
+    // Fade in
+    el.style.opacity = '1';
+    await new Promise((r) => setTimeout(r, 110));
+  } catch (e) {
+    setText(el, newText);
+    el.style.opacity = '1';
+  }
+}
+
 // init() → ne fait rien si l'élément n'existe pas (no-op), sinon met une valeur initiale.
 export async function init() {
   const el = $(SELECTOR_FLAMES);
@@ -15,12 +48,10 @@ export async function init() {
   try {
     // Affichage instantané depuis le cache local (évite le flash à 0)
     const fast = await Storage.loadProfileFast();
-    setText(el, Number(fast.flames) || 0);
-    el.setAttribute('data-ready', '1');
+    await setFlamesWithFade(el, Number(fast.flames) || 0, false);
     // Puis on demandera une vraie lecture (refresh) ailleurs
   } catch (e) {
-    setText(el, '0');
-    el.setAttribute('data-ready', '1');
+    await setFlamesWithFade(el, 0, false);
   }
 }
 
@@ -42,8 +73,7 @@ export async function refresh() {
   }
 
   const updated = await Storage.loadProfile();
-  setText(el, Number(updated.flames) || 0);
-  el.setAttribute('data-ready', '1');
+  await setFlamesWithFade(el, Number(updated.flames) || 0, true);
 }
 
 const Navbar = { init, refresh };
