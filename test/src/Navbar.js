@@ -16,9 +16,11 @@ export async function init() {
     // Affichage instantané depuis le cache local (évite le flash à 0)
     const fast = await Storage.loadProfileFast();
     setText(el, Number(fast.flames) || 0);
+    el.setAttribute('data-ready', '1');
     // Puis on demandera une vraie lecture (refresh) ailleurs
   } catch (e) {
     setText(el, '0');
+    el.setAttribute('data-ready', '1');
   }
 }
 
@@ -41,6 +43,7 @@ export async function refresh() {
 
   const updated = await Storage.loadProfile();
   setText(el, Number(updated.flames) || 0);
+  el.setAttribute('data-ready', '1');
 }
 
 const Navbar = { init, refresh };
