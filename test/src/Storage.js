@@ -6,6 +6,8 @@ import { log } from './Utils.js';
 
 const LS_PROFILE_KEY = 'ps_profile_v1';
 const LS_ANON_ID_KEY = 'ps_anon_id_v1';
+const LS_PROFILE_PENDING_UNTIL = 'ps_profile_pending_until_v1';
+const MS_PENDING_WINDOW_MS = 8000; // fenêtre pendant laquelle on privilégie le cache local
 
 // Valeurs par défaut du profil.
 const DEFAULT_PROFILE = {
@@ -164,29 +166,18 @@ export async function loadProfile() {
     log('Impossible de lire le profil localStorage, on repart sur les défauts.');
   }
 
-  // Puis on écrase avec Memberstack uniquement pour les champs réellement présents
-  if (isMemberstackAvailable()) {
+  // Si on a une écriture récente, on privilégie le cache local pour éviter le va-et-vient
+  let isPending = false;
+  try {
+    const until = Number(localStorage.getItem(LS_PROFILE_PENDING_UNTIL) || 0);
+    if (until && Date.now() < until) isPending = true;
+  } catch (e) {}
+
+  // Sinon, on laisse Memberstack être la source de vérité et on écrase le local
+  if (!isPending && isMemberstackAvailable()) {
     const msProfile = await memberstackLoadProfile();
     if (msProfile) {
-      // Ne remplace que les champs restés à leur valeur par défaut locale
-      const out = { ...base };
-      if (
-        msProfile.xp_total !== undefined &&
-        (base.xp_total === DEFAULT_PROFILE.xp_total || base.xp_total === undefined)
-      ) out.xp_total = Number(msProfile.xp_total) || 0;
-      if (
-        msProfile.level !== undefined &&
-        (base.level === DEFAULT_PROFILE.level || base.level === undefined)
-      ) out.level = Number(msProfile.level) || 1;
-      if (
-        msProfile.flames !== undefined &&
-        (base.flames === DEFAULT_PROFILE.flames || base.flames === undefined)
-      ) out.flames = Number(msProfile.flames) || 0;
-      if (
-        msProfile.last_play_date !== undefined &&
-        (base.last_play_date === DEFAULT_PROFILE.last_play_date || base.last_play_date === undefined)
-      ) out.last_play_date = msProfile.last_play_date || null;
-      base = out;
+      base = { ...base, ...msProfile };
       usedMemberstack = true;
     }
   }
@@ -218,6 +209,10 @@ export async function saveProfile(profile) {
   // Écrire aussi localement pour vitesse et offline
   try {
     localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(prof));
+    // Marquer une fenêtre de préférence locale pour éviter que MS (éventuellement en retard)
+    // ne réécrase immédiatement nos valeurs côté lecture.
+    const windowMs = okMs ? 3000 : MS_PENDING_WINDOW_MS;
+    localStorage.setItem(LS_PROFILE_PENDING_UNTIL, String(Date.now() + windowMs));
   } catch (e) {
     // Ignorer les erreurs de quota, etc.
   }
