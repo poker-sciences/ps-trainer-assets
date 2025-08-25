@@ -46,10 +46,10 @@ async function memberstackLoadProfile() {
         return undefined;
       };
 
-      const xpRaw = pick('xp_total', 'xpTotal', 'xp');
+      const xpRaw = pick('xp_total', 'xpTotal', 'xp', 'xp-total');
       const levelRaw = pick('level', 'niveau');
       const flamesRaw = pick('flames', 'flammes');
-      const lastRaw = pick('last_play_date', 'lastPlayDate', 'last_played', 'lastPlayed');
+      const lastRaw = pick('last_play_date', 'lastPlayDate', 'last_played', 'lastPlayed', 'last-play-date');
 
       const profile = {};
       if (xpRaw !== undefined) profile.xp_total = Number(xpRaw) || 0;
@@ -72,9 +72,11 @@ async function memberstackLoadProfile() {
       const fields = (await ms.getCustomFields()) || {};
       const profile = {};
       if (fields.xp_total !== undefined) profile.xp_total = Number(fields.xp_total) || 0;
+      if (fields['xp-total'] !== undefined) profile.xp_total = Number(fields['xp-total']) || 0;
       if (fields.level !== undefined) profile.level = Number(fields.level) || 1;
       if (fields.flames !== undefined) profile.flames = Number(fields.flames) || 0;
       if (fields.last_play_date !== undefined) profile.last_play_date = fields.last_play_date || null;
+      if (fields['last-play-date'] !== undefined) profile.last_play_date = fields['last-play-date'] || null;
       return profile;
     }
 
@@ -84,9 +86,11 @@ async function memberstackLoadProfile() {
       const fields = (res && (res.customFields || res.data?.customFields)) || {};
       const profile = {};
       if (fields.xp_total !== undefined) profile.xp_total = Number(fields.xp_total) || 0;
+      if (fields['xp-total'] !== undefined) profile.xp_total = Number(fields['xp-total']) || 0;
       if (fields.level !== undefined) profile.level = Number(fields.level) || 1;
       if (fields.flames !== undefined) profile.flames = Number(fields.flames) || 0;
       if (fields.last_play_date !== undefined) profile.last_play_date = fields.last_play_date || null;
+      if (fields['last-play-date'] !== undefined) profile.last_play_date = fields['last-play-date'] || null;
       return profile;
     }
 
@@ -109,12 +113,14 @@ async function memberstackSaveProfile(profile) {
 
     // 1) V2 runtime
     if (window.$memberstackDom && window.$memberstackDom.updateCurrentMember) {
-      // On écrit à la fois en anglais et en éventuel alias français si présent dans ton app
+      // Écrire avec toutes les variantes observées (kebabCase + camelCase + snake_case)
       const customFields = {
         ...payload,
-        flammes: payload.flames, // alias FR éventuel
+        flammes: payload.flames,
+        'xp-total': payload.xp_total,
         xpTotal: payload.xp_total,
         lastPlayDate: payload.last_play_date,
+        'last-play-date': payload.last_play_date,
       };
       await window.$memberstackDom.updateCurrentMember({ customFields });
       return true;
