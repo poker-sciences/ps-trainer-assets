@@ -12,6 +12,10 @@ export function boot() {
       await Navbar.refresh();
     } catch (e) {}
 
+    // Memberstack V2 peut être prêt après le DOMContentLoaded → refresh tardif
+    try { setTimeout(() => { Navbar.refresh(); }, 1500); } catch (e) {}
+    try { setTimeout(() => { Navbar.refresh(); }, 4000); } catch (e) {}
+
     try { await Pages.initLobby(); } catch (e) {}
     try { await Pages.initQuestions(); } catch (e) {}
     try { await Pages.initResults(); } catch (e) {}
