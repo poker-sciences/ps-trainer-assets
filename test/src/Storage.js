@@ -114,10 +114,14 @@ async function memberstackSaveProfile(profile) {
     };
 
     // 1) V2 runtime
-    if (window.$memberstackDom && window.$memberstackDom.updateCurrentMember) {
-      // Construire l'objet minimal en évitant d'envoyer des null/undefined
+    const d = window.$memberstackDom;
+    if (d) {
+      // Construire l'objet minimal avec tous les slugs pertinents
       const customFields = {};
-      if (payload.flames !== undefined) customFields.flames = payload.flames;
+      if (payload.flames !== undefined) {
+        customFields.flames = payload.flames;     // slug prioritaire
+        customFields.flammes = payload.flames;    // alias éventuel observé côté MS
+      }
       if (payload.xp_total !== undefined) {
         customFields['xp-total'] = payload.xp_total;
         customFields.xpTotal = payload.xp_total;
@@ -128,17 +132,24 @@ async function memberstackSaveProfile(profile) {
       }
       if (payload.level !== undefined) customFields.level = payload.level;
 
-      // petite attente si MS n'est pas encore prêt
-      try { await window.$memberstackDom.getCurrentMember?.(); } catch (e) {}
+      // Warmup
+      try { await d.getCurrentMember?.(); } catch (e) {}
 
-      // retry léger (3 tentatives)
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      const attempts = [
+        async () => typeof d.updateMember === 'function' && (await d.updateMember({ customFields })),
+        async () => typeof d.updateMemberJSON === 'function' && (await d.updateMemberJSON({ customFields })),
+        async () => typeof d.setCustomFields === 'function' && (await d.setCustomFields(customFields)),
+        async () => typeof d.updateCustomFields === 'function' && (await d.updateCustomFields(customFields)),
+        async () => typeof d.updateMemberJSON === 'function' && (await d.updateMemberJSON(customFields)),
+      ];
+
+      for (let i = 0; i < attempts.length; i += 1) {
+        const fn = attempts[i];
         try {
-          await window.$memberstackDom.updateCurrentMember({ customFields });
-          return true;
+          const res = await fn?.();
+          if (res !== false) return true; // succès probable
         } catch (e) {
-          if (attempt === 2) throw e;
-          await new Promise((r) => setTimeout(r, 400));
+          // on tente la suivante
         }
       }
     }
