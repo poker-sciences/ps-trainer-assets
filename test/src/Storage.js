@@ -107,25 +107,40 @@ async function memberstackLoadProfile() {
 async function memberstackSaveProfile(profile) {
   try {
     const payload = {
-      xp_total: String(profile.xp_total || 0),
-      level: String(profile.level || 1),
-      flames: String(profile.flames || 0),
-      last_play_date: profile.last_play_date || null,
+      xp_total: profile.xp_total != null ? String(profile.xp_total) : undefined,
+      level: profile.level != null ? String(profile.level) : undefined,
+      flames: profile.flames != null ? String(profile.flames) : undefined,
+      last_play_date: profile.last_play_date || undefined,
     };
 
     // 1) V2 runtime
     if (window.$memberstackDom && window.$memberstackDom.updateCurrentMember) {
-      // Écrire avec toutes les variantes observées (kebabCase + camelCase + snake_case)
-      const customFields = {
-        ...payload,
-        flammes: payload.flames,
-        'xp-total': payload.xp_total,
-        xpTotal: payload.xp_total,
-        lastPlayDate: payload.last_play_date,
-        'last-play-date': payload.last_play_date,
-      };
-      await window.$memberstackDom.updateCurrentMember({ customFields });
-      return true;
+      // Construire l'objet minimal en évitant d'envoyer des null/undefined
+      const customFields = {};
+      if (payload.flames !== undefined) customFields.flammes = payload.flames;
+      if (payload.xp_total !== undefined) {
+        customFields['xp-total'] = payload.xp_total;
+        customFields.xpTotal = payload.xp_total;
+      }
+      if (payload.last_play_date !== undefined) {
+        customFields['last-play-date'] = payload.last_play_date;
+        customFields.lastPlayDate = payload.last_play_date;
+      }
+      if (payload.level !== undefined) customFields.level = payload.level;
+
+      // petite attente si MS n'est pas encore prêt
+      try { await window.$memberstackDom.getCurrentMember?.(); } catch (e) {}
+
+      // retry léger (3 tentatives)
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          await window.$memberstackDom.updateCurrentMember({ customFields });
+          return true;
+        } catch (e) {
+          if (attempt === 2) throw e;
+          await new Promise((r) => setTimeout(r, 400));
+        }
+      }
     }
 
     const ms = window.Memberstack || window.memberstack || window.MemberStack;
