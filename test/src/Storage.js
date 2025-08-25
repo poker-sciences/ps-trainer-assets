@@ -199,6 +199,15 @@ export async function loadProfile() {
   return base;
 }
 
+// Lecture ultra-rapide (cache local uniquement) pour l'affichage initial.
+export async function loadProfileFast() {
+  try {
+    const raw = localStorage.getItem(LS_PROFILE_KEY);
+    if (raw) return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+  } catch (e) {}
+  return { ...DEFAULT_PROFILE };
+}
+
 // Écrit le profil complet.
 export async function saveProfile(profile) {
   const prof = { ...DEFAULT_PROFILE, ...profile };
@@ -254,7 +263,7 @@ export async function getUserId() {
 }
 
 const Storage = {
-  loadProfile, saveProfile, patchProfile, isTodayCredited, getUserId,
+  loadProfile, loadProfileFast, saveProfile, patchProfile, isTodayCredited, getUserId,
 };
 
 export default Storage;

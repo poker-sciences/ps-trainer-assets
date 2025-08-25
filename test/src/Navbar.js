@@ -13,8 +13,10 @@ export async function init() {
   const el = $(SELECTOR_FLAMES);
   if (!el) return; // no-op
   try {
-    const profile = await Storage.loadProfile();
-    setText(el, Number(profile.flames) || 0);
+    // Affichage instantané depuis le cache local (évite le flash à 0)
+    const fast = await Storage.loadProfileFast();
+    setText(el, Number(fast.flames) || 0);
+    // Puis on demandera une vraie lecture (refresh) ailleurs
   } catch (e) {
     setText(el, '0');
   }
