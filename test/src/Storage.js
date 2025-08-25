@@ -156,6 +156,7 @@ async function memberstackSaveProfile(profile) {
 export async function loadProfile() {
   // On lit toujours localStorage en premier
   let base = { ...DEFAULT_PROFILE };
+  let usedMemberstack = false;
   try {
     const raw = localStorage.getItem(LS_PROFILE_KEY);
     if (raw) base = { ...base, ...JSON.parse(raw) };
@@ -186,7 +187,13 @@ export async function loadProfile() {
         (base.last_play_date === DEFAULT_PROFILE.last_play_date || base.last_play_date === undefined)
       ) out.last_play_date = msProfile.last_play_date || null;
       base = out;
+      usedMemberstack = true;
     }
+  }
+
+  // Si on a enrichi depuis Memberstack, on met à jour le cache local
+  if (usedMemberstack) {
+    try { localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(base)); } catch (e) {}
   }
 
   return base;
